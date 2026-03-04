@@ -1,7 +1,7 @@
-// === Configuration ===
-const BACKEND_HTTP_BASE = "http://localhost:7000"; // adjust if backend is hosted elsewhere
+
+const BACKEND_HTTP_BASE = "https://temp-kopk.onrender.com"; // deployed backend
 const API_BASE = `${BACKEND_HTTP_BASE}/api/v1`;
-const WS_URL = `ws://localhost:7000`; // same host as backend by default
+const WS_URL = `wss://temp-kopk.onrender.com`; // use wss for secure websocket
 
 // === Helpers ===
 const qs = (sel) => document.querySelector(sel);
