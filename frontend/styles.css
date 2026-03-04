@@ -1,0 +1,159 @@
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    background: radial-gradient(circle at top left, #f9fafb, #e5e7eb 55%);
+    min-height: 100vh;
+    color: #111827;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #fb923c, #f97316);
+}
+
+.card-glass {
+    background: #ffffff;
+    border-radius: 1rem;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    backdrop-filter: blur(12px);
+    color: #111827;
+}
+
+.card-metric-temp {
+    border-top: 4px solid #3b82f6;
+}
+
+.card-metric-humidity {
+    border-top: 4px solid #22c55e;
+}
+
+.card-metric-heat {
+    border-top: 4px solid #ef4444;
+}
+
+.card-metric-light {
+    border-top: 4px solid #f59e0b;
+}
+
+.icon-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.bg-gradient-warm {
+    background: linear-gradient(135deg, #fb923c, #f97316);
+}
+
+.bg-gradient-humid {
+    background: linear-gradient(135deg, #0ea5e9, #22c55e);
+}
+
+.bg-gradient-danger {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+.bg-gradient-light {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+    background: #ef4444;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.4);
+}
+
+.status-dot.connected {
+    background: #22c55e;
+}
+
+.status-dot.connecting {
+    background: #eab308;
+}
+
+.table-dark {
+    --bs-table-bg: #ffffff;
+    --bs-table-color: #111827;
+    --bs-table-striped-bg: rgba(249, 250, 251, 1);
+    --bs-table-striped-color: #111827;
+}
+
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.6);
+}
+
+.form-control,
+.form-select,
+.form-control::placeholder {
+    color: #111827;
+}
+
+.form-text {
+    color: #6b7280 !important;
+}
+
+.badge {
+    letter-spacing: 0.03em;
+}
+
+.toast {
+    background-color: #ffffff;
+    color: #111827;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+}
+
+.toast-header {
+    border-bottom-color: rgba(148, 163, 184, 0.4);
+}
+
+.toast-body {
+    font-size: 0.875rem;
+}
+
+.badge-level-normal {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.badge-level-caution {
+    background: linear-gradient(135deg, #eab308, #f97316);
+}
+
+.badge-level-extreme-caution {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.badge-level-danger {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+.badge-level-extreme-danger {
+    background: linear-gradient(135deg, #7f1d1d, #450a0a);
+}
+
+.badge-light-dark {
+    background: linear-gradient(135deg, #0f172a, #020617);
+}
+
+.badge-light-cloudy {
+    background: linear-gradient(135deg, #4b5563, #6b7280);
+}
+
+.badge-light-sunny {
+    background: linear-gradient(135deg, #facc15, #f97316);
+}
+
+@media (max-width: 767.98px) {
+    .card-glass {
+        border-radius: 0.9rem;
+    }
+}
+

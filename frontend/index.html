@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Heat Monitor Dashboard</title>
+
+    <!-- Bootstrap 5 -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+        crossorigin="anonymous"
+    />
+
+    <!-- Icons -->
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+    />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-semibold" href="#">
+                <i class="fa-solid fa-temperature-half me-2"></i>Heat Monitor
+            </a>
+            <button
+                class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarContent"
+                aria-controls="navbarContent"
+                aria-expanded="false"
+                aria-label="Toggle navigation"
+            >
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <span class="badge bg-secondary d-flex align-items-center gap-2">
+                            <span class="status-dot" id="wsStatusDot"></span>
+                            <span id="wsStatusText">Disconnected</span>
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid py-4">
+        <!-- Charts -->
+        <section class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card card-glass card-metric-temp h-100">
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase small text-muted">
+                            Temperature
+                        </h6>
+                        <span class="small text-muted">
+                            Live 10-point history
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="tempChart" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card card-glass card-metric-humidity h-100">
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase small text-muted">
+                            Humidity
+                        </h6>
+                        <span class="small text-muted">
+                            Live 10-point history
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="humidityChart" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card card-glass card-metric-heat h-100">
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase small text-muted">
+                            Heat Index
+                        </h6>
+                        <span class="small text-muted">
+                            Live 10-point history
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="heatIndexChart" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card card-glass card-metric-light h-100">
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0 text-uppercase small text-muted">
+                                Light Level
+                            </h6>
+                            <span class="small text-muted">
+                                Live 10-point history
+                            </span>
+                        </div>
+                        <span
+                            id="lightStatusLabel"
+                            class="badge bg-secondary small text-uppercase"
+                        >
+                            N/A
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="lightChart" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SMS Settings and Alerts -->
+        <section class="row g-3">
+            <div class="col-lg-4">
+                <div class="card card-glass h-100">
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase small text-muted">
+                            SMS Settings
+                        </h6>
+                        <span
+                            id="smsSettingsStatus"
+                            class="badge bg-secondary small"
+                        >
+                            Not loaded
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <form id="smsSettingsForm" class="vstack gap-3">
+                            <div>
+                                <label class="form-label small text-uppercase">
+                                    Phone Numbers
+                                </label>
+                                <textarea
+                                    class="form-control form-control-sm"
+                                    id="phoneNumbersInput"
+                                    rows="2"
+                                    placeholder="Enter comma-separated phone numbers (e.g. 639761700936,639275778126)"
+                                ></textarea>
+                                <div class="form-text text-muted small">
+                                    Stored in backend `SmsSettings.phoneNumbers`.
+                                </div>
+                                <div class="mt-2">
+                                    <div class="small text-muted mb-1">
+                                        Current numbers (click × to remove)
+                                    </div>
+                                    <div
+                                        id="phoneNumbersChips"
+                                        class="d-flex flex-wrap gap-1"
+                                    ></div>
+                                </div>
+                            </div>
+
+                            <div class="form-check form-switch">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    role="switch"
+                                    id="enableAlertsInput"
+                                />
+                                <label
+                                    class="form-check-label"
+                                    for="enableAlertsInput"
+                                >
+                                    Enable automatic heat SMS alerts
+                                </label>
+                            </div>
+
+                            <div>
+                                <label
+                                    for="cooldownMinutesInput"
+                                    class="form-label small text-uppercase"
+                                >
+                                    Cooldown (minutes)
+                                </label>
+                                <input
+                                    type="number"
+                                    class="form-control form-control-sm"
+                                    id="cooldownMinutesInput"
+                                    min="1"
+                                    max="1440"
+                                    step="1"
+                                />
+                                <div class="form-text text-muted small">
+                                    Minimum time between alerts per level.
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="btn btn-sm btn-primary w-100"
+                                id="saveSmsSettingsBtn"
+                            >
+                                <i class="fa-solid fa-floppy-disk me-1"></i>
+                                Save SMS Settings
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card card-glass h-100">
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase small text-muted">
+                            Custom Alerts
+                        </h6>
+                        <span class="badge bg-secondary small" id="customAlertCount">
+                            0 alerts
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <form id="customAlertForm" class="vstack gap-2 mb-3">
+                            <input type="hidden" id="customAlertId" />
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small mb-1">
+                                        Metric
+                                    </label>
+                                    <select
+                                        id="customAlertMetric"
+                                    class="form-select form-select-sm"
+                                    >
+                                        <option value="temperature">
+                                            Temperature
+                                        </option>
+                                        <option value="heatIndex">
+                                            Heat Index
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small mb-1">
+                                        Condition
+                                    </label>
+                                    <select
+                                        id="customAlertCondition"
+                                    class="form-select form-select-sm"
+                                    >
+                                        <option value="greater">&gt; (greater)</option>
+                                        <option value="less">&lt; (less)</option>
+                                        <option value="equal">= (equal)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="form-label small mb-1">
+                                    Value
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    class="form-control form-control-sm"
+                                    id="customAlertValue"
+                                />
+                            </div>
+                            <div>
+                                <label class="form-label small mb-1">
+                                    Message
+                                </label>
+                                <input
+                                    type="text"
+                                    class="form-control form-control-sm"
+                                    id="customAlertMessage"
+                                    placeholder="SMS message when condition matches"
+                                />
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-outline-primary flex-fill"
+                                >
+                                    <i class="fa-solid fa-plus me-1"></i>
+                                    <span id="customAlertSubmitLabel">
+                                        Add Alert
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary d-none"
+                                    id="cancelEditCustomAlertBtn"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="table-responsive small">
+                            <table class="table table-dark table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Condition</th>
+                                        <th>Value</th>
+                                        <th>Message</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customAlertsTableBody">
+                                    <tr class="text-muted">
+                                        <td colspan="5" class="text-center">
+                                            No custom alerts configured.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card card-glass h-100">
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase small text-muted">
+                            Scheduled Alerts
+                        </h6>
+                        <span class="badge bg-secondary small" id="scheduledAlertCount">
+                            0 alerts
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <form id="scheduledAlertForm" class="vstack gap-2 mb-3">
+                            <input type="hidden" id="scheduledAlertId" />
+                            <div>
+                                <label class="form-label small mb-1">
+                                    Time
+                                </label>
+                                <input
+                                    type="time"
+                                    class="form-control form-control-sm"
+                                    id="scheduledAlertTime"
+                                />
+                            </div>
+                            <div>
+                                <label class="form-label small mb-1">
+                                    Message
+                                </label>
+                                <input
+                                    type="text"
+                                    class="form-control form-control-sm"
+                                    id="scheduledAlertMessage"
+                                    placeholder="SMS message to send at scheduled time"
+                                />
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-outline-primary flex-fill"
+                                >
+                                    <i class="fa-solid fa-plus me-1"></i>
+                                    <span id="scheduledAlertSubmitLabel">
+                                        Add Schedule
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary d-none"
+                                    id="cancelEditScheduledAlertBtn"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="table-responsive small">
+                            <table class="table table-dark table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Message</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scheduledAlertsTableBody">
+                                    <tr class="text-muted">
+                                        <td colspan="3" class="text-center">
+                                            No scheduled alerts configured.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toasts -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+        <div
+            id="toastContainer"
+            class="toast-container toast-container-bottom-end"
+        ></div>
+    </div>
+
+    <!-- Bootstrap JS bundle -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"
+    ></script>
+
+    <!-- App logic -->
+    <script src="./app.js"></script>
+</body>
+</html>
+
