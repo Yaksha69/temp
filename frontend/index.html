@@ -32,8 +32,9 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm border-bottom">
         <div class="container-fluid">
-            <a class="navbar-brand fw-semibold" href="#">
-                <i class="fa-solid fa-temperature-half me-2"></i>Heat Monitor
+            <a class="navbar-brand fw-semibold d-flex align-items-center gap-2" href="#">
+                <i class="fa-solid fa-temperature-half"></i>
+                <span>Heat Monitor</span>
             </a>
             <button
                 class="navbar-toggler"
@@ -48,6 +49,11 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarContent">
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item me-3">
+                        <span class="small text-muted" id="currentDateTime">
+                            <!-- Filled by JS -->
+                        </span>
+                    </li>
                     <li class="nav-item">
                         <span class="badge bg-secondary d-flex align-items-center gap-2">
                             <span class="status-dot" id="wsStatusDot"></span>
@@ -60,6 +66,18 @@
     </nav>
 
     <main class="container-fluid py-4">
+        <div class="d-flex justify-content-end mb-3">
+            <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-bs-toggle="modal"
+                data-bs-target="#historyModal"
+            >
+                <i class="fa-solid fa-clock-rotate-left me-1"></i>
+                View Data History
+            </button>
+        </div>
+
         <!-- Charts -->
         <section class="row g-3 mb-4">
             <div class="col-lg-6">
@@ -411,6 +429,341 @@
             </div>
         </section>
     </main>
+
+    <!-- History modal -->
+    <div
+        class="modal fade"
+        id="historyModal"
+        tabindex="-1"
+        aria-labelledby="historyModalLabel"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="historyModalLabel">
+                        Data History
+                    </h5>
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                    ></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+                        <div class="d-flex flex-column">
+                            <label for="historyDateFilter" class="form-label small mb-1">
+                                Filter by date
+                            </label>
+                            <input
+                                type="date"
+                                id="historyDateFilter"
+                                class="form-control form-control-sm"
+                            />
+                        </div>
+                        <div class="d-flex flex-column">
+                            <label for="historyTimeSearch" class="form-label small mb-1">
+                                Search time
+                            </label>
+                            <input
+                                type="text"
+                                id="historyTimeSearch"
+                                class="form-control form-control-sm"
+                                placeholder="e.g. 10:30"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary mt-3"
+                            id="clearHistoryDateFilterBtn"
+                        >
+                            Clear filters
+                        </button>
+                        <div class="ms-auto d-flex align-items-end gap-3">
+                            <div class="d-flex flex-column">
+                                <label for="historyPageSize" class="form-label small mb-1">
+                                    Rows per page
+                                </label>
+                                <select
+                                    id="historyPageSize"
+                                    class="form-select form-select-sm"
+                                >
+                                    <option value="10" selected>10</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <nav aria-label="History pagination">
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item">
+                                        <button
+                                            class="page-link"
+                                            type="button"
+                                            id="historyPrevPage"
+                                        >
+                                            ‹ Prev
+                                        </button>
+                                    </li>
+                                    <li class="page-item disabled">
+                                        <span
+                                            class="page-link text-muted"
+                                            id="historyPageInfo"
+                                        >
+                                            Page 1 of 1
+                                        </span>
+                                    </li>
+                                    <li class="page-item">
+                                        <button
+                                            class="page-link"
+                                            type="button"
+                                            id="historyNextPage"
+                                        >
+                                            Next ›
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link active"
+                                id="temp-tab"
+                                data-bs-toggle="tab"
+                                data-bs-target="#tempHistoryTab"
+                                type="button"
+                                role="tab"
+                                aria-controls="tempHistoryTab"
+                                aria-selected="true"
+                            >
+                                Temperature
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link"
+                                id="heatindex-tab"
+                                data-bs-toggle="tab"
+                                data-bs-target="#heatIndexHistoryTab"
+                                type="button"
+                                role="tab"
+                                aria-controls="heatIndexHistoryTab"
+                                aria-selected="false"
+                            >
+                                Heat Index
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link"
+                                id="humidity-tab"
+                                data-bs-toggle="tab"
+                                data-bs-target="#humidityHistoryTab"
+                                type="button"
+                                role="tab"
+                                aria-controls="humidityHistoryTab"
+                                aria-selected="false"
+                            >
+                                Humidity
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link"
+                                id="light-tab"
+                                data-bs-toggle="tab"
+                                data-bs-target="#lightHistoryTab"
+                                type="button"
+                                role="tab"
+                                aria-controls="lightHistoryTab"
+                                aria-selected="false"
+                            >
+                                Light
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div
+                            class="tab-pane fade show active"
+                            id="tempHistoryTab"
+                            role="tabpanel"
+                            aria-labelledby="temp-tab"
+                        >
+                            <div class="table-responsive small">
+                                <table class="table table-dark table-sm align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none history-sort"
+                                                    data-sort-key="createdAt"
+                                                >
+                                                    Date &amp; Time
+                                                </button>
+                                            </th>
+                                            <th>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none history-sort"
+                                                    data-sort-key="temperature"
+                                                >
+                                                    Temperature (°C)
+                                                </button>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tempHistoryBody">
+                                        <tr class="text-muted">
+                                            <td colspan="2" class="text-center">
+                                                No data yet.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div
+                            class="tab-pane fade"
+                            id="heatIndexHistoryTab"
+                            role="tabpanel"
+                            aria-labelledby="heatindex-tab"
+                        >
+                            <div class="table-responsive small">
+                                <table class="table table-dark table-sm align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none history-sort"
+                                                    data-sort-key="createdAt"
+                                                >
+                                                    Date &amp; Time
+                                                </button>
+                                            </th>
+                                            <th>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none history-sort"
+                                                    data-sort-key="heatIndex"
+                                                >
+                                                    Heat Index (°C)
+                                                </button>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="heatIndexHistoryBody">
+                                        <tr class="text-muted">
+                                            <td colspan="2" class="text-center">
+                                                No data yet.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div
+                            class="tab-pane fade"
+                            id="humidityHistoryTab"
+                            role="tabpanel"
+                            aria-labelledby="humidity-tab"
+                        >
+                            <div class="table-responsive small">
+                                <table class="table table-dark table-sm align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none history-sort"
+                                                    data-sort-key="createdAt"
+                                                >
+                                                    Date &amp; Time
+                                                </button>
+                                            </th>
+                                            <th>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none history-sort"
+                                                    data-sort-key="humidity"
+                                                >
+                                                    Humidity (%)</button
+                                                >
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="humidityHistoryBody">
+                                        <tr class="text-muted">
+                                            <td colspan="2" class="text-center">
+                                                No data yet.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div
+                            class="tab-pane fade"
+                            id="lightHistoryTab"
+                            role="tabpanel"
+                            aria-labelledby="light-tab"
+                        >
+                            <div class="table-responsive small">
+                                <table class="table table-dark table-sm align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none history-sort"
+                                                    data-sort-key="createdAt"
+                                                >
+                                                    Date &amp; Time
+                                                </button>
+                                            </th>
+                                            <th>
+                            <button
+                                                    type="button"
+                                                    class="btn btn-link btn-sm p-0 text-decoration-none history-sort"
+                                                    data-sort-key="light"
+                                                >
+                                                    Light
+                                                </button>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="lightHistoryBody">
+                                        <tr class="text-muted">
+                                            <td colspan="2" class="text-center">
+                                                No data yet.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        data-bs-dismiss="modal"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Toasts -->
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">

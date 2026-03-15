@@ -112,11 +112,23 @@ function renderPhoneNumberChips(numbers) {
     });
 }
 
-// === Charts ===
+// === Charts & history ===
 let tempChart;
 let humidityChart;
 let heatIndexChart;
 let lightChart;
+
+const HISTORY_DEFAULT_PAGE_SIZE = 10;
+let historyRecords = [];
+let historyAvailableDates = new Set();
+const historyFilters = {
+    date: null,
+    page: 1,
+    timeQuery: "",
+    pageSize: HISTORY_DEFAULT_PAGE_SIZE,
+    sortKey: "createdAt", // 'createdAt', 'temperature', 'heatIndex', 'humidity', 'light'
+    sortDir: "desc", // 'asc' | 'desc'
+};
 
 function createLineChart(ctx, label, color, suggestedMax) {
     return new Chart(ctx, {
@@ -177,6 +189,195 @@ function initCharts() {
     lightChart = createLineChart(lightCtx, "Light Level", "rgb(234, 179, 8)", 120);
 }
 
+function normalizeDateOnly(dateLike) {
+    const d = new Date(dateLike);
+    if (Number.isNaN(d.getTime())) return null;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+function updateHistoryDateInputMeta() {
+    const input = qs("#historyDateFilter");
+    if (!input) return;
+
+    const dates = Array.from(historyAvailableDates).sort();
+    if (!dates.length) {
+        input.min = "";
+        input.max = "";
+        input.disabled = true;
+        return;
+    }
+
+    input.disabled = false;
+    input.min = dates[0];
+    input.max = dates[dates.length - 1];
+}
+
+function addHistoryRecord(d) {
+    const createdAt = d.createdAt || Date.now();
+    historyRecords.push({
+        createdAt: d.createdAt || Date.now(),
+        temperature: d.temperature ?? null,
+        heatIndex: d.heatIndex ?? null,
+        humidity: d.humidity ?? null,
+        light: d.light ?? null,
+    });
+
+    const dateOnly = normalizeDateOnly(createdAt);
+    if (dateOnly) {
+        historyAvailableDates.add(dateOnly);
+    }
+
+    updateHistoryDateInputMeta();
+}
+
+function setInitialHistory(records) {
+    historyRecords = [];
+    historyAvailableDates = new Set();
+    records.forEach((d) => addHistoryRecord(d));
+    historyFilters.page = 1;
+
+    // If the current date filter is not in the available dates anymore, clear it
+    if (
+        historyFilters.date &&
+        !historyAvailableDates.has(historyFilters.date)
+    ) {
+        historyFilters.date = null;
+    }
+
+    renderHistoryTables();
+}
+
+async function loadFullHistoryFromApi() {
+    try {
+        const res = await fetch(`${API_BASE}/data/all`);
+        if (!res.ok) {
+            throw new Error(`Failed to load history: ${res.status}`);
+        }
+        const json = await res.json();
+        if (!Array.isArray(json)) {
+            console.warn("Unexpected history response format", json);
+            return;
+        }
+        setInitialHistory(json);
+        console.log(`Loaded ${json.length} historical records from API.`);
+    } catch (err) {
+        console.error("Error loading full history from API:", err);
+        showToast({
+            title: "History",
+            body: "Failed to load full history from server.",
+            variant: "danger",
+        });
+    }
+}
+
+function getFilteredSortedHistory() {
+    let recs = [...historyRecords];
+    if (historyFilters.date) {
+        recs = recs.filter((r) => {
+            const recDate = normalizeDateOnly(r.createdAt);
+            return recDate === historyFilters.date;
+        });
+    }
+
+    if (historyFilters.timeQuery) {
+        const q = historyFilters.timeQuery.toLowerCase();
+        recs = recs.filter((r) => {
+            const t = new Date(r.createdAt)
+                .toLocaleTimeString()
+                .toLowerCase();
+            return t.includes(q);
+        });
+    }
+
+    const { sortKey, sortDir } = historyFilters;
+    recs.sort((a, b) => {
+        let av;
+        let bv;
+        if (sortKey === "createdAt") {
+            av = new Date(a.createdAt).getTime();
+            bv = new Date(b.createdAt).getTime();
+        } else {
+            av = a[sortKey] ?? -Infinity;
+            bv = b[sortKey] ?? -Infinity;
+        }
+        if (av < bv) return sortDir === "asc" ? -1 : 1;
+        if (av > bv) return sortDir === "asc" ? 1 : -1;
+        return 0;
+    });
+    return recs;
+}
+
+function getHistoryPage() {
+    const all = getFilteredSortedHistory();
+    const totalCount = all.length;
+    const pageSize = historyFilters.pageSize || HISTORY_DEFAULT_PAGE_SIZE;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    if (historyFilters.page > totalPages) {
+        historyFilters.page = totalPages;
+    }
+    const start = (historyFilters.page - 1) * pageSize;
+    const pageRecords = all.slice(start, start + pageSize);
+    return { pageRecords, totalPages, totalCount };
+}
+
+function renderHistoryTables() {
+    const tempBody = qs("#tempHistoryBody");
+    const hiBody = qs("#heatIndexHistoryBody");
+    const humBody = qs("#humidityHistoryBody");
+    const lightBody = qs("#lightHistoryBody");
+    const pageInfoEl = qs("#historyPageInfo");
+    const prevBtn = qs("#historyPrevPage");
+    const nextBtn = qs("#historyNextPage");
+
+    const { pageRecords, totalPages, totalCount } = getHistoryPage();
+
+    const renderMetricTable = (tbody, metricKey, unitLabel) => {
+        if (!tbody) return;
+        tbody.innerHTML = "";
+        const rowsForMetric = pageRecords.filter(
+            (r) => r[metricKey] !== null && r[metricKey] !== undefined
+        );
+        if (!rowsForMetric.length) {
+            const tr = document.createElement("tr");
+            tr.className = "text-muted";
+            tr.innerHTML = `
+                <td colspan="2" class="text-center">No data for this selection.</td>
+            `;
+            tbody.appendChild(tr);
+            return;
+        }
+
+        rowsForMetric.forEach((r) => {
+            const dt = new Date(r.createdAt).toLocaleString();
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${dt}</td>
+                <td>${r[metricKey] ?? "—"}${unitLabel ? " " + unitLabel : ""}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    };
+
+    renderMetricTable(tempBody, "temperature", "");
+    renderMetricTable(hiBody, "heatIndex", "");
+    renderMetricTable(humBody, "humidity", "");
+    renderMetricTable(lightBody, "light", "");
+
+    if (pageInfoEl) {
+        pageInfoEl.textContent = `Page ${historyFilters.page} of ${totalPages} (${totalCount} record${totalCount === 1 ? "" : "s"})`;
+    }
+    if (prevBtn) {
+        prevBtn.disabled = historyFilters.page <= 1 || totalCount === 0;
+    }
+    if (nextBtn) {
+        nextBtn.disabled =
+            historyFilters.page >= totalPages || totalCount === 0;
+    }
+}
+
 function updateChartsFromInitial(dataArr) {
     const labels = dataArr.map((d) =>
         new Date(d.createdAt || Date.now()).toLocaleTimeString()
@@ -194,6 +395,9 @@ function updateChartsFromInitial(dataArr) {
     humidityChart.data.datasets[0].data = hums.slice(-10);
     heatIndexChart.data.datasets[0].data = heatIdx.slice(-10);
     lightChart.data.datasets[0].data = lights.slice(-10);
+
+    // Seed the history tables
+    setInitialHistory(dataArr);
 
     tempChart.update("none");
     humidityChart.update("none");
@@ -223,6 +427,10 @@ function pushNewDataPoint(d) {
         }
         chart.update("none");
     });
+
+    // Also append to history
+    addHistoryRecord(d);
+    renderHistoryTables();
 }
 
 // === Sensor UI ===
@@ -788,7 +996,82 @@ function wireEventHandlers() {
         cancelScheduledBtn.addEventListener("click", cancelEditScheduledAlert);
     }
 
-    // Delegate clicks for dynamic tables & chips
+    // History filters & pagination
+    const dateFilterInput = qs("#historyDateFilter");
+    const timeSearchInput = qs("#historyTimeSearch");
+    const clearDateBtn = qs("#clearHistoryDateFilterBtn");
+    const pageSizeSelect = qs("#historyPageSize");
+    const prevPageBtn = qs("#historyPrevPage");
+    const nextPageBtn = qs("#historyNextPage");
+
+    if (dateFilterInput) {
+        dateFilterInput.addEventListener("change", () => {
+            const value = dateFilterInput.value || null;
+            if (value && !historyAvailableDates.has(value)) {
+                // Disallow selecting dates without data
+                showToast({
+                    title: "History filter",
+                    body: "No data available for that date.",
+                    variant: "warning",
+                });
+                dateFilterInput.value = historyFilters.date || "";
+                return;
+            }
+
+            historyFilters.date = value;
+            historyFilters.page = 1;
+            renderHistoryTables();
+        });
+    }
+
+    if (timeSearchInput) {
+        timeSearchInput.addEventListener("input", () => {
+            historyFilters.timeQuery = timeSearchInput.value.trim();
+            historyFilters.page = 1;
+            renderHistoryTables();
+        });
+    }
+
+    if (clearDateBtn && dateFilterInput && timeSearchInput) {
+        clearDateBtn.addEventListener("click", () => {
+            dateFilterInput.value = "";
+            historyFilters.date = null;
+            timeSearchInput.value = "";
+            historyFilters.timeQuery = "";
+            historyFilters.page = 1;
+            renderHistoryTables();
+        });
+    }
+
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener("change", () => {
+            const val = Number(pageSizeSelect.value) || HISTORY_DEFAULT_PAGE_SIZE;
+            historyFilters.pageSize = val;
+            historyFilters.page = 1;
+            renderHistoryTables();
+        });
+    }
+
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener("click", () => {
+            if (historyFilters.page > 1) {
+                historyFilters.page -= 1;
+                renderHistoryTables();
+            }
+        });
+    }
+
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener("click", () => {
+            const { totalPages } = getHistoryPage();
+            if (historyFilters.page < totalPages) {
+                historyFilters.page += 1;
+                renderHistoryTables();
+            }
+        });
+    }
+
+    // Delegate clicks for dynamic tables, sorting & chips
     document.addEventListener("click", (e) => {
         const target = e.target.closest("button");
         if (!target) return;
@@ -814,15 +1097,48 @@ function wireEventHandlers() {
             );
             phoneInputEl.value = updated.join(", ");
             renderPhoneNumberChips(updated);
+        } else if (target.classList.contains("history-sort")) {
+            const key = target.dataset.sortKey;
+            if (!key) return;
+
+            if (historyFilters.sortKey === key) {
+                historyFilters.sortDir =
+                    historyFilters.sortDir === "asc" ? "desc" : "asc";
+            } else {
+                historyFilters.sortKey = key;
+                historyFilters.sortDir = "asc";
+            }
+            historyFilters.page = 1;
+            renderHistoryTables();
         }
     });
 }
 
 // === Init ===
 window.addEventListener("DOMContentLoaded", async () => {
+    // Real-time clock in navbar
+    const clockEl = qs("#currentDateTime");
+    if (clockEl) {
+        const updateClock = () => {
+            const now = new Date();
+            clockEl.textContent = now.toLocaleString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            });
+        };
+        updateClock();
+        setInterval(updateClock, 1000);
+    }
+
     initCharts();
     wireEventHandlers();
     connectWebSocket();
     await loadSmsSettings();
+    // Load full historical data once so the date filter sees all days with data
+    await loadFullHistoryFromApi();
 });
 
